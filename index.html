@@ -71,7 +71,6 @@
 
     let accessToken = null;
 
-    // Check for access token in URL
     window.onload = () => {
       if (window.location.hash) {
         const hash = window.location.hash.substring(1);
@@ -97,20 +96,33 @@
       if (!match) return alert('Invalid playlist URL');
       const playlistId = match[1];
 
-      const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      const data = await res.json();
-      const songs = data.items.map(item => ({
-        name: item.track.name,
-        artist: item.track.artists[0].name,
-        img: item.track.album.images[0]?.url,
-        url: item.track.external_urls.spotify
-      }));
+      try {
+        const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
 
-      renderSongs(songs);
+        if (!res.ok) {
+          const errorMsg = await res.text();
+          console.error('Spotify API error:', errorMsg);
+          alert('Failed to fetch playlist: ' + res.status);
+          return;
+        }
+
+        const data = await res.json();
+        const songs = data.items.map(item => ({
+          name: item.track.name,
+          artist: item.track.artists[0].name,
+          img: item.track.album.images[0]?.url,
+          url: item.track.external_urls.spotify
+        }));
+
+        renderSongs(songs);
+      } catch (err) {
+        console.error('Fetch error:', err);
+        alert('An error occurred while loading the playlist.');
+      }
     };
 
     function renderSongs(songs) {
