@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Spotify Redirect</title>
+  <script>
+    // Immediately redirect back to the main app, keeping the access token
+    window.onload = () => {
+      if (window.location.hash) {
+        window.location.href = "/Fifa-Ranker-12-21-Plus/" + window.location.hash;
+      } else {
+        window.location.href = "/Fifa-Ranker-12-21-Plus/";
+      }
+    };
+  </script>
+</head>
+<body>
+  <p>Redirecting back to the app...</p>
+</body>
+</html>
