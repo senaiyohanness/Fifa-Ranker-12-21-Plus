@@ -22,10 +22,11 @@
       margin-top: 20px;
       cursor: pointer;
     }
-    .song-container {
+    .song-container, .ranking-board {
       display: flex;
       flex-direction: column;
       gap: 10px;
+      margin-top: 30px;
     }
     .song {
       display: flex;
@@ -35,6 +36,7 @@
       border-radius: 8px;
       padding: 10px;
       cursor: grab;
+      justify-content: space-between;
     }
     .song img {
       height: 60px;
@@ -51,6 +53,11 @@
       color: #1db954;
       font-weight: bold;
     }
+    .controls button {
+      margin-left: 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -62,21 +69,26 @@
   <input id="playlistInput" type="text" placeholder="Paste Spotify Playlist URL here" style="margin-top:20px;width:100%;padding:10px;" />
   <button id="loadBtn">Load Playlist Songs</button>
 
+  <h2>All Playlist Songs</h2>
   <div id="songList" class="song-container"></div>
+
+  <h2>🏆 Top 100 Ranking</h2>
+  <div id="rankingBoard" class="ranking-board"></div>
+
+  <audio id="audioPlayer" controls style="display:none;"></audio>
 
   <script>
     const clientId = '7ca36959578b4e96ad42dc422222237e';
     const redirectUri = 'https://senaiyohanness.github.io/Fifa-Ranker-12-21-Plus/';
     let accessToken = null;
+    let rankedSongs = [];
 
-    // Generate random code verifier
     function generateCodeVerifier() {
       const array = new Uint32Array(56);
       window.crypto.getRandomValues(array);
       return Array.from(array, dec => ('0' + dec.toString(16)).slice(-2)).join('');
     }
 
-    // Hash code verifier for PKCE
     async function generateCodeChallenge(codeVerifier) {
       const encoder = new TextEncoder();
       const data = encoder.encode(codeVerifier);
@@ -87,7 +99,6 @@
         .replace(/=+$/, '');
     }
 
-    // Parse access token if it exists
     async function checkAuthCode() {
       const params = new URLSearchParams(window.location.search);
       if (params.has('code')) {
@@ -160,7 +171,8 @@
           name: item.track.name,
           artist: item.track.artists[0].name,
           img: item.track.album.images[0]?.url,
-          url: item.track.external_urls.spotify
+          url: item.track.external_urls.spotify,
+          preview: item.track.preview_url
         }));
 
         renderSongs(songs);
@@ -176,36 +188,70 @@
       songs.forEach((song, index) => {
         const div = document.createElement('div');
         div.className = 'song';
-        div.draggable = true;
         div.dataset.index = index;
 
         div.innerHTML = `
-          <img src="${song.img}" alt="Cover" />
-          <div class="song-details">
-            <a href="${song.url}" target="_blank">${song.name}</a>
-            <span>${song.artist}</span>
+          <div style="display:flex;align-items:center;">
+            <img src="${song.img}" alt="Cover" />
+            <div class="song-details">
+              <a href="${song.url}" target="_blank">${song.name}</a>
+              <span>${song.artist}</span>
+            </div>
+          </div>
+          <div class="controls">
+            <button onclick="playPreview('${song.preview}')">▶ Preview</button>
+            <button onclick='addToRanking(${JSON.stringify(song)})'>Add to Ranking</button>
           </div>
         `;
-
-        div.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('text/plain', index);
-        });
-
-        div.addEventListener('dragover', (e) => e.preventDefault());
-
-        div.addEventListener('drop', (e) => {
-          e.preventDefault();
-          const draggedIndex = +e.dataTransfer.getData('text/plain');
-          const targetIndex = +div.dataset.index;
-          [songs[draggedIndex], songs[targetIndex]] = [songs[targetIndex], songs[draggedIndex]];
-          renderSongs(songs);
-        });
 
         list.appendChild(div);
       });
     }
 
-    // Trigger code exchange on page load
+    function playPreview(url) {
+      const player = document.getElementById('audioPlayer');
+      if (!url) return alert('No preview available for this track.');
+      player.src = url;
+      player.style.display = 'block';
+      player.play();
+    }
+
+    function addToRanking(song) {
+      if (rankedSongs.find(s => s.name === song.name)) return alert('Song already ranked.');
+      if (rankedSongs.length >= 100) rankedSongs.pop(); // Remove lowest if full
+      rankedSongs.unshift(song); // Add to top
+      renderRanking();
+    }
+
+    function renderRanking() {
+      const board = document.getElementById('rankingBoard');
+      board.innerHTML = '';
+      rankedSongs.forEach((song, index) => {
+        const div = document.createElement('div');
+        div.className = 'song';
+        div.innerHTML = `
+          <div style="display:flex;align-items:center;">
+            <img src="${song.img}" alt="Cover" />
+            <div class="song-details">
+              <strong>#${index + 1}:</strong>
+              <a href="${song.url}" target="_blank">${song.name}</a>
+              <span>${song.artist}</span>
+            </div>
+          </div>
+          <div class="controls">
+            <button onclick="playPreview('${song.preview}')">▶</button>
+            <button onclick="removeFromRanking(${index})">❌</button>
+          </div>
+        `;
+        board.appendChild(div);
+      });
+    }
+
+    function removeFromRanking(index) {
+      rankedSongs.splice(index, 1);
+      renderRanking();
+    }
+
     checkAuthCode();
   </script>
 </body>
