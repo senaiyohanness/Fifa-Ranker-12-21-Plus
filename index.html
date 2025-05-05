@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>FIFA Song Ranker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://sdk.scdn.co/spotify-player.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -60,6 +59,7 @@
       cursor: pointer;
     }
   </style>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </head>
 <body>
   <h1>🎵 FIFA Song Ranker</h1>
@@ -83,7 +83,6 @@
     const redirectUri = 'https://senaiyohanness.github.io/Fifa-Ranker-12-21-Plus/';
     let accessToken = null;
     let deviceId = null;
-    let player = null;
     let rankedSongs = [];
 
     function generateCodeVerifier() {
@@ -125,43 +124,8 @@
         const data = await response.json();
         accessToken = data.access_token;
         window.history.replaceState({}, document.title, "/");
-        initializeSpotifyPlayer();
+        initializePlayer();
       }
-    }
-
-    function initializeSpotifyPlayer() {
-      window.onSpotifyWebPlaybackSDKReady = () => {
-        player = new Spotify.Player({
-          name: 'FIFA Ranker Player',
-          getOAuthToken: cb => { cb(accessToken); },
-          volume: 0.5
-        });
-
-        player.addListener('ready', ({ device_id }) => {
-          deviceId = device_id;
-          console.log('Player ready with device ID', deviceId);
-          transferPlaybackHere(device_id);
-        });
-
-        player.addListener('not_ready', () => {
-          alert('Spotify player not ready.');
-        });
-
-        player.connect().then(success => {
-          if (!success) alert('Spotify Player failed to connect.');
-        });
-      };
-    }
-
-    function transferPlaybackHere(device_id) {
-      fetch("https://api.spotify.com/v1/me/player", {
-        method: "PUT",
-        body: JSON.stringify({ device_ids: [device_id], play: false }),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`
-        }
-      });
     }
 
     document.getElementById('loginBtn').onclick = async () => {
@@ -174,14 +138,38 @@
         `?client_id=${clientId}` +
         '&response_type=code' +
         `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&scope=streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state playlist-read-private playlist-read-collaborative` +
+        `&scope=streaming user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative` +
         `&code_challenge_method=S256&code_challenge=${codeChallenge}`;
 
       window.location.href = authUrl;
     };
 
+    function initializePlayer() {
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        const player = new Spotify.Player({
+          name: 'FIFA Song Ranker Player',
+          getOAuthToken: cb => { cb(accessToken); },
+          volume: 0.8
+        });
+
+        player.addListener('ready', ({ device_id }) => {
+          deviceId = device_id;
+        });
+
+        player.addListener('initialization_error', ({ message }) => console.error(message));
+        player.addListener('authentication_error', ({ message }) => console.error(message));
+        player.addListener('account_error', ({ message }) => console.error(message));
+        player.addListener('playback_error', ({ message }) => console.error(message));
+
+        player.connect();
+      };
+    }
+
     document.getElementById('loadBtn').onclick = async () => {
-      if (!accessToken) return alert('Please log in with Spotify first.');
+      if (!accessToken) {
+        alert('Please log in with Spotify first.');
+        return;
+      }
 
       const url = document.getElementById('playlistInput').value.trim();
       const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
@@ -190,7 +178,9 @@
 
       try {
         const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         });
 
         if (!res.ok) {
@@ -206,7 +196,7 @@
           artist: item.track.artists[0].name,
           img: item.track.album.images[0]?.url,
           url: item.track.external_urls.spotify,
-          id: item.track.uri
+          uri: item.track.uri
         }));
 
         renderSongs(songs);
@@ -233,7 +223,7 @@
             </div>
           </div>
           <div class="controls">
-            <button onclick="playOnSpotify('${song.id}')">▶ Play</button>
+            <button onclick="playSongAtRandom('${song.uri}')">▶ Preview</button>
             <button onclick='addToRanking(${JSON.stringify(song)})'>Add to Ranking</button>
           </div>
         `;
@@ -242,16 +232,36 @@
       });
     }
 
-    function playOnSpotify(uri) {
-      if (!deviceId) return alert("Spotify player not ready.");
-      fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: "PUT",
+    async function playSongAtRandom(uri) {
+      if (!deviceId || !accessToken) return alert('Spotify player not ready.');
+      const position = Math.floor(Math.random() * 60000) + 30000;
+
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
         body: JSON.stringify({ uris: [uri] }),
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
         }
       });
+
+      setTimeout(() => {
+        fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${position}&device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+      }, 1000);
+
+      setTimeout(() => {
+        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+      }, 12000);
     }
 
     function addToRanking(song) {
@@ -277,7 +287,7 @@
             </div>
           </div>
           <div class="controls">
-            <button onclick="playOnSpotify('${song.id}')">▶</button>
+            <button onclick="playSongAtRandom('${song.uri}')">▶</button>
             <button onclick="removeFromRanking(${index})">❌</button>
           </div>
         `;
