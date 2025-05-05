@@ -8,7 +8,8 @@
     body {
       font-family: Arial, sans-serif;
       margin: 40px;
-      background: #f7f7f7;
+      background: #000;
+      color: white;
     }
     h1 {
       color: #1db954;
@@ -16,7 +17,7 @@
     #loginBtn, #loadBtn {
       padding: 10px 15px;
       background-color: #1db954;
-      color: white;
+      color: black;
       border: none;
       border-radius: 5px;
       margin-top: 20px;
@@ -28,20 +29,25 @@
       gap: 10px;
       margin-top: 30px;
     }
-    .song {
+    .song, .ranking-item {
       display: flex;
       align-items: center;
-      background: white;
-      border: 1px solid #ccc;
+      background: #1a1a1a;
+      border: 1px solid #444;
       border-radius: 8px;
       padding: 10px;
       justify-content: space-between;
+      color: white;
     }
-    .song img {
+    .song img, .ranking-item img {
       height: 60px;
       width: 60px;
       margin-right: 15px;
       border-radius: 6px;
+    }
+    .ranking-item img {
+      height: 40px;
+      width: 40px;
     }
     .song-details {
       display: flex;
@@ -56,15 +62,6 @@
       margin-left: 10px;
       padding: 5px 10px;
       cursor: pointer;
-    }
-    .ranking-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 10px;
     }
     .ranking-item span {
       margin-right: 10px;
@@ -134,7 +131,7 @@
         const data = await response.json();
         accessToken = data.access_token;
         window.history.replaceState({}, document.title, "/");
-        initializePlayer(); // This will connect the player after auth
+        initializePlayer();
       }
     }
 
@@ -151,7 +148,7 @@
         deviceId = device_id;
         playerReady = true;
         console.log('Player ready with Device ID', deviceId);
-        transferPlaybackHere(deviceId);
+        transferPlaybackHere(device_id);
       });
 
       player.connect();
@@ -235,7 +232,7 @@
         item.innerHTML = `
           <span>#${idx + 1}</span>
           <div style="display:flex;align-items:center;">
-            <img src="${song.img || ''}" alt="Cover" style="height:40px;width:40px;margin-right:10px;" />
+            <img src="${song.img || ''}" alt="Cover" />
             <div>
               <div><strong>${song.name}</strong></div>
               <div style="font-size:smaller;">${song.artist}</div>
@@ -293,7 +290,8 @@
           uri: item.track.uri
         }));
 
-        renderSongs(songs);
+        const newSongs = songs.filter(song => !ranking.some(r => r.uri === song.uri));
+        renderSongs(newSongs);
       } catch (err) {
         console.error(err);
         alert('Failed to load playlist.');
@@ -303,12 +301,17 @@
     checkAuthCode();
   </script>
 
-  <!-- ✅ Global SDK Callback First -->
   <script>
     window.onSpotifyWebPlaybackSDKReady = () => {
       initializePlayer();
     };
   </script>
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script>
+    new Sortable(document.getElementById('rankingBoard'), {
+      animation: 150
+    });
+  </script>
 </body>
 </html>
