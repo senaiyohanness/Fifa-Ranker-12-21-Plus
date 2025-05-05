@@ -80,7 +80,6 @@
     let accessToken = null;
     let player = null;
     let deviceId = null;
-    let rankedSongs = [];
 
     async function generateCodeVerifier() {
       const array = new Uint32Array(56);
@@ -99,9 +98,28 @@
     }
 
     async function checkAuthCode() {
-      const params = new URLSearchParams(window.location.hash.substring(1));
-      if (params.has('access_token')) {
-        accessToken = params.get('access_token');
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('code')) {
+        const code = params.get('code');
+        const storedVerifier = localStorage.getItem('code_verifier');
+
+        const body = new URLSearchParams({
+          client_id: clientId,
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: redirectUri,
+          code_verifier: storedVerifier
+        });
+
+        const response = await fetch('https://accounts.spotify.com/api/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+
+        const data = await response.json();
+        accessToken = data.access_token;
+        window.history.replaceState({}, document.title, "/");
         initializePlayer();
       }
     }
@@ -135,15 +153,19 @@
       });
     }
 
-    async function playSong(uri) {
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ uris: [uri] }),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
+    async function playFullSong(uri) {
+      try {
+        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ uris: [uri] }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+      } catch (err) {
+        console.error("Error playing full song:", err);
+      }
     }
 
     function renderSongs(songs) {
@@ -163,7 +185,7 @@
             </div>
           </div>
           <div class="controls">
-            <button onclick="playSong('${song.uri}')">▶ Play</button>
+            <button onclick="playFullSong('${song.uri}')">▶ Play</button>
           </div>
         `;
 
@@ -171,23 +193,18 @@
       });
     }
 
-    document.getElementById('loginBtn').onclick = () => {
-      const scopes = [
-        'streaming',
-        'user-read-email',
-        'user-read-private',
-        'user-modify-playback-state',
-        'user-read-playback-state',
-        'playlist-read-private',
-        'playlist-read-collaborative'
-      ];
+    document.getElementById('loginBtn').onclick = async () => {
+      const codeVerifier = await generateCodeVerifier();
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+      localStorage.setItem('code_verifier', codeVerifier);
+
       const authUrl =
         'https://accounts.spotify.com/authorize' +
         `?client_id=${clientId}` +
-        '&response_type=token' +
+        '&response_type=code' +
         `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&scope=${scopes.join('%20')}` +
-        '&show_dialog=true';
+        `&scope=streaming user-read-email user-read-private playlist-read-private playlist-read-collaborative user-modify-playback-state user-read-playback-state` +
+        `&code_challenge_method=S256&code_challenge=${codeChallenge}`;
 
       window.location.href = authUrl;
     };
