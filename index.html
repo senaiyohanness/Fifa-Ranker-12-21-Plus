@@ -75,7 +75,69 @@
   <div id="rankingBoard" class="ranking-board"></div>
 
   <script>
-    // ...existing JS code remains unchanged...
+    let token = null;
+    let player;
+
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      const clientId = '7ca36959578b4e96ad42dc422222237e';
+      const redirectUri = 'https://senaiyohanness.github.io/Fifa-Ranker-12-21-Plus/';
+      const scopes = [
+        'streaming',
+        'user-read-email',
+        'user-read-private',
+        'user-modify-playback-state',
+        'user-read-playback-state'
+      ];
+      const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes.join('%20')}&response_type=token&show_dialog=true`;
+      window.location = authUrl;
+    });
+
+    window.addEventListener('load', () => {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      token = params.get('access_token');
+      if (token) {
+        window.onSpotifyWebPlaybackSDKReady = () => {
+          player = new Spotify.Player({
+            name: 'FIFA Ranker Web Player',
+            getOAuthToken: cb => { cb(token); },
+            volume: 0.5
+          });
+
+          player.addListener('ready', ({ device_id }) => {
+            console.log('Player is ready with Device ID', device_id);
+            setTimeout(() => {
+              fetch('https://api.spotify.com/v1/me/player', {
+                method: 'PUT',
+                body: JSON.stringify({ device_ids: [device_id], play: false }),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+            }, 1000);
+          });
+
+          player.addListener('not_ready', ({ device_id }) => {
+            console.error('Device ID has gone offline', device_id);
+          });
+
+          player.addListener('initialization_error', ({ message }) => {
+            console.error('Initialization error:', message);
+          });
+
+          player.addListener('authentication_error', ({ message }) => {
+            console.error('Authentication error:', message);
+          });
+
+          player.addListener('account_error', ({ message }) => {
+            console.error('Account error:', message);
+          });
+
+          player.connect();
+        };
+      }
+    });
   </script>
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
