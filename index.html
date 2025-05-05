@@ -121,6 +121,7 @@
 
         const data = await response.json();
         accessToken = data.access_token;
+        console.log('Access Token:', accessToken);
         window.history.replaceState({}, document.title, "/");
         initializePlayer();
       }
@@ -137,13 +138,13 @@
         player.addListener('ready', ({ device_id }) => {
           deviceId = device_id;
           console.log('Player ready with device ID', deviceId);
-          transferPlaybackHere(deviceId);
+          setTimeout(() => transferPlaybackHere(deviceId), 1000);
         });
 
-        player.addListener('initialization_error', ({ message }) => console.error(message));
-        player.addListener('authentication_error', ({ message }) => console.error(message));
-        player.addListener('account_error', ({ message }) => console.error(message));
-        player.addListener('playback_error', ({ message }) => console.error(message));
+        player.addListener('initialization_error', ({ message }) => console.error('init error', message));
+        player.addListener('authentication_error', ({ message }) => console.error('auth error', message));
+        player.addListener('account_error', ({ message }) => console.error('account error', message));
+        player.addListener('playback_error', ({ message }) => console.error('playback error', message));
 
         player.connect().then(success => {
           if (!success) alert('Spotify Player failed to connect.');
@@ -152,6 +153,7 @@
     }
 
     function transferPlaybackHere(device_id) {
+      console.log('Transferring playback to device:', device_id);
       fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         body: JSON.stringify({ device_ids: [device_id], play: false }),
@@ -159,6 +161,60 @@
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         }
+      });
+    }
+
+    async function playHighlight(uri) {
+      if (!deviceId) return alert('Spotify player not ready.');
+      const offset = Math.floor(Math.random() * 60000) + 30000;
+
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ uris: [uri] }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      setTimeout(() => {
+        fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${offset}&device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+      }, 1000);
+
+      setTimeout(() => {
+        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+      }, 12000);
+    }
+
+    function renderSongs(songs) {
+      const list = document.getElementById('songList');
+      list.innerHTML = '';
+      songs.forEach((song, index) => {
+        const div = document.createElement('div');
+        div.className = 'song';
+        div.dataset.index = index;
+
+        div.innerHTML = `
+          <div style="display:flex;align-items:center;">
+            <img src="${song.img}" alt="Cover" />
+            <div class="song-details">
+              <a href="${song.url}" target="_blank">${song.name}</a>
+              <span>${song.artist}</span>
+            </div>
+          </div>
+          <div class="controls">
+            <button onclick="playHighlight('${song.uri}')">▶ Preview</button>
+            <button onclick='addToRanking(${JSON.stringify(song)})'>Add to Ranking</button>
+          </div>
+        `;
+
+        list.appendChild(div);
       });
     }
 
@@ -206,60 +262,6 @@
         alert('Failed to load playlist.');
       }
     };
-
-    function renderSongs(songs) {
-      const list = document.getElementById('songList');
-      list.innerHTML = '';
-      songs.forEach((song, index) => {
-        const div = document.createElement('div');
-        div.className = 'song';
-        div.dataset.index = index;
-
-        div.innerHTML = `
-          <div style="display:flex;align-items:center;">
-            <img src="${song.img}" alt="Cover" />
-            <div class="song-details">
-              <a href="${song.url}" target="_blank">${song.name}</a>
-              <span>${song.artist}</span>
-            </div>
-          </div>
-          <div class="controls">
-            <button onclick="playHighlight('${song.uri}')">▶ Preview</button>
-            <button onclick='addToRanking(${JSON.stringify(song)})'>Add to Ranking</button>
-          </div>
-        `;
-
-        list.appendChild(div);
-      });
-    }
-
-    async function playHighlight(uri) {
-      if (!deviceId) return alert('Spotify player not ready.');
-      const offset = Math.floor(Math.random() * 60000) + 30000;
-
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ uris: [uri] }),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      setTimeout(() => {
-        fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${offset}&device_id=${deviceId}`, {
-          method: 'PUT',
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-      }, 1000);
-
-      setTimeout(() => {
-        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
-          method: 'PUT',
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-      }, 12000);
-    }
 
     function addToRanking(song) {
       if (rankedSongs.find(s => s.name === song.name)) return alert('Song already ranked.');
