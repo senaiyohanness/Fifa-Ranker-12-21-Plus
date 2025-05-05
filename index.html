@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+>
 <head>
   <meta charset="UTF-8" />
   <title>FIFA Song Ranker</title>
@@ -153,7 +154,8 @@
       });
     }
 
-    async function playSong(uri) {
+    async function playRandomSection(uri) {
+      const startMs = Math.floor(Math.random() * 90000) + 30000;
       await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         body: JSON.stringify({ uris: [uri] }),
@@ -162,6 +164,13 @@
           'Authorization': `Bearer ${accessToken}`
         }
       });
+
+      setTimeout(() => {
+        fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${startMs}&device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+      }, 1500);
     }
 
     function renderSongs(songs) {
@@ -181,7 +190,7 @@
             </div>
           </div>
           <div class="controls">
-            <button onclick="playSong('${song.uri}')">▶ Play</button>
+            <button onclick="playRandomSection('${song.uri}')">▶ Preview</button>
           </div>
         `;
 
