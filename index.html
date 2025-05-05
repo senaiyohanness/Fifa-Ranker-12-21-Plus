@@ -58,6 +58,11 @@
       padding: 5px 10px;
       cursor: pointer;
     }
+    .no-preview {
+      color: gray;
+      font-style: italic;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
@@ -190,6 +195,10 @@
         div.className = 'song';
         div.dataset.index = index;
 
+        const previewButton = song.preview
+          ? `<button onclick="playPreview('${song.preview}')">▶ Preview</button>`
+          : `<span class="no-preview">No preview</span>`;
+
         div.innerHTML = `
           <div style="display:flex;align-items:center;">
             <img src="${song.img}" alt="Cover" />
@@ -199,7 +208,7 @@
             </div>
           </div>
           <div class="controls">
-            <button onclick="playPreview('${song.preview}')">▶ Preview</button>
+            ${previewButton}
             <button onclick='addToRanking(${JSON.stringify(song)})'>Add to Ranking</button>
           </div>
         `;
@@ -212,14 +221,31 @@
       const player = document.getElementById('audioPlayer');
       if (!url) {
         alert('No preview available for this track.');
+        player.pause();
+        player.style.display = 'none';
         return;
       }
+
       player.src = url;
       player.style.display = 'block';
-      player.play().catch((err) => {
-        console.error('Autoplay blocked:', err);
-        alert('Click the audio player to allow playback.');
-      });
+
+      const tryPlay = () => {
+        player.play().then(() => {
+          console.log('Preview playing...');
+        }).catch((err) => {
+          console.warn('Autoplay blocked or error:', err);
+          alert('Click the audio player to allow playback.');
+        });
+      };
+
+      player.onloadedmetadata = () => {
+        if (player.duration === 0) {
+          alert('This song has no actual preview.');
+          player.style.display = 'none';
+        } else {
+          tryPlay();
+        }
+      };
     }
 
     function addToRanking(song) {
@@ -233,6 +259,10 @@
       const board = document.getElementById('rankingBoard');
       board.innerHTML = '';
       rankedSongs.forEach((song, index) => {
+        const previewButton = song.preview
+          ? `<button onclick=\"playPreview('${song.preview}')\">▶</button>`
+          : `<span class=\"no-preview\">No preview</span>`;
+
         const div = document.createElement('div');
         div.className = 'song';
         div.innerHTML = `
@@ -245,7 +275,7 @@
             </div>
           </div>
           <div class="controls">
-            <button onclick="playPreview('${song.preview}')">▶</button>
+            ${previewButton}
             <button onclick="removeFromRanking(${index})">❌</button>
           </div>
         `;
