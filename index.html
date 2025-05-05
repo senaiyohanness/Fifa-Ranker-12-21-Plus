@@ -210,10 +210,16 @@
 
     function playPreview(url) {
       const player = document.getElementById('audioPlayer');
-      if (!url) return alert('No preview available for this track.');
+      if (!url) {
+        alert('No preview available for this track.');
+        return;
+      }
       player.src = url;
       player.style.display = 'block';
-      player.play();
+      player.play().catch((err) => {
+        console.error('Autoplay blocked:', err);
+        alert('Click the audio player to allow playback.');
+      });
     }
 
     function addToRanking(song) {
