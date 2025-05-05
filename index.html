@@ -57,46 +57,19 @@
       padding: 5px 10px;
       cursor: pointer;
     }
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .ranking-item span {
+      margin-right: 10px;
+    }
   </style>
-  <script>
-    const clientId = '7ca36959578b4e96ad42dc422222237e';
-    const redirectUri = 'https://senaiyohanness.github.io/Fifa-Ranker-12-21-Plus/';
-    let accessToken = null;
-    let player = null;
-    let deviceId = null;
-    let playerReady = false;
-
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      player = new Spotify.Player({
-        name: 'FIFA Ranker Player',
-        getOAuthToken: cb => cb(accessToken),
-        volume: 0.8
-      });
-
-      player.addListener('ready', ({ device_id }) => {
-        deviceId = device_id;
-        playerReady = true;
-        console.log('Player ready with Device ID', deviceId);
-        transferPlaybackHere(deviceId);
-      });
-
-      player.addListener('initialization_error', ({ message }) => {
-        console.error('Initialization error:', message);
-      });
-      player.addListener('authentication_error', ({ message }) => {
-        console.error('Authentication error:', message);
-      });
-      player.addListener('account_error', ({ message }) => {
-        console.error('Account error:', message);
-      });
-      player.addListener('playback_error', ({ message }) => {
-        console.error('Playback error:', message);
-      });
-
-      player.connect();
-    };
-  </script>
-  <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </head>
 <body>
   <h1>🎵 FIFA Song Ranker</h1>
@@ -114,6 +87,14 @@
   <div id="rankingBoard" class="ranking-board"></div>
 
   <script>
+    const clientId = '7ca36959578b4e96ad42dc422222237e';
+    const redirectUri = 'https://senaiyohanness.github.io/Fifa-Ranker-12-21-Plus/';
+    let accessToken = null;
+    let player = null;
+    let deviceId = null;
+    let playerReady = false;
+    const ranking = [];
+
     async function generateCodeVerifier() {
       const array = new Uint32Array(56);
       window.crypto.getRandomValues(array);
@@ -153,7 +134,27 @@
         const data = await response.json();
         accessToken = data.access_token;
         window.history.replaceState({}, document.title, "/");
+        initializePlayer();
       }
+    }
+
+    function initializePlayer() {
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        player = new Spotify.Player({
+          name: 'FIFA Ranker Player',
+          getOAuthToken: cb => cb(accessToken),
+          volume: 0.8
+        });
+
+        player.addListener('ready', ({ device_id }) => {
+          deviceId = device_id;
+          playerReady = true;
+          console.log('Player ready with Device ID', deviceId);
+          transferPlaybackHere(deviceId);
+        });
+
+        player.connect();
+      };
     }
 
     function transferPlaybackHere(device_id) {
@@ -204,11 +205,51 @@
           </div>
           <div class="controls">
             <button onclick="playFullSong('${song.uri}')">▶ Play</button>
+            <button onclick='addToRanking(${JSON.stringify(song)})'>Add to Ranking</button>
           </div>
         `;
 
         list.appendChild(div);
       });
+    }
+
+    function addToRanking(song) {
+      if (ranking.find(s => s.uri === song.uri)) return;
+      if (ranking.length >= 100) {
+        alert('Ranking is full. Remove a song before adding.');
+        return;
+      }
+      ranking.push(song);
+      renderRanking();
+    }
+
+    function renderRanking() {
+      const board = document.getElementById('rankingBoard');
+      board.innerHTML = '';
+      ranking.forEach((song, idx) => {
+        const item = document.createElement('div');
+        item.className = 'ranking-item';
+        item.innerHTML = `
+          <span>#${idx + 1}</span>
+          <div style="display:flex;align-items:center;">
+            <img src="${song.img}" alt="Cover" style="height:40px;width:40px;margin-right:10px;" />
+            <div>
+              <div><strong>${song.name}</strong></div>
+              <div style="font-size:smaller;">${song.artist}</div>
+            </div>
+          </div>
+          <button onclick="removeFromRanking('${song.uri}')">❌</button>
+        `;
+        board.appendChild(item);
+      });
+    }
+
+    function removeFromRanking(uri) {
+      const index = ranking.findIndex(s => s.uri === uri);
+      if (index !== -1) {
+        ranking.splice(index, 1);
+        renderRanking();
+      }
     }
 
     document.getElementById('loginBtn').onclick = async () => {
@@ -258,5 +299,6 @@
 
     checkAuthCode();
   </script>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
 </html>
