@@ -204,12 +204,15 @@
             </div>
           </div>
           <div class="controls">
-            <button onclick="playFullSong('${song.uri}')">▶ Play</button>
-            <button onclick='addToRanking(${JSON.stringify(song)})'>Add to Ranking</button>
+            <button class="playBtn">▶ Play</button>
+            <button class="addBtn">Add to Ranking</button>
           </div>
         `;
 
         list.appendChild(div);
+
+        div.querySelector('.playBtn').addEventListener('click', () => playFullSong(song.uri));
+        div.querySelector('.addBtn').addEventListener('click', () => addToRanking(song));
       });
     }
 
