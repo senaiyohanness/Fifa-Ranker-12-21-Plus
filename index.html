@@ -80,6 +80,7 @@
     let accessToken = null;
     let player = null;
     let deviceId = null;
+    let playerReady = false;
 
     async function generateCodeVerifier() {
       const array = new Uint32Array(56);
@@ -134,8 +135,22 @@
 
         player.addListener('ready', ({ device_id }) => {
           deviceId = device_id;
+          playerReady = true;
           console.log('Player ready with Device ID', deviceId);
           transferPlaybackHere(deviceId);
+        });
+
+        player.addListener('initialization_error', ({ message }) => {
+          console.error('Initialization error:', message);
+        });
+        player.addListener('authentication_error', ({ message }) => {
+          console.error('Authentication error:', message);
+        });
+        player.addListener('account_error', ({ message }) => {
+          console.error('Account error:', message);
+        });
+        player.addListener('playback_error', ({ message }) => {
+          console.error('Playback error:', message);
         });
 
         player.connect();
@@ -154,6 +169,10 @@
     }
 
     async function playFullSong(uri) {
+      if (!playerReady || !deviceId) {
+        console.error('Player not ready');
+        return;
+      }
       try {
         await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
           method: 'PUT',
