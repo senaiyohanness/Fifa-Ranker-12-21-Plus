@@ -8,8 +8,7 @@
     body {
       font-family: Arial, sans-serif;
       margin: 40px;
-      background: #000;
-      color: white;
+      background: #f7f7f7;
     }
     h1 {
       color: #1db954;
@@ -17,7 +16,7 @@
     #loginBtn, #loadBtn {
       padding: 10px 15px;
       background-color: #1db954;
-      color: black;
+      color: white;
       border: none;
       border-radius: 5px;
       margin-top: 20px;
@@ -29,25 +28,20 @@
       gap: 10px;
       margin-top: 30px;
     }
-    .song, .ranking-item {
+    .song {
       display: flex;
       align-items: center;
-      background: #1a1a1a;
-      border: 1px solid #444;
+      background: white;
+      border: 1px solid #ccc;
       border-radius: 8px;
       padding: 10px;
       justify-content: space-between;
-      color: white;
     }
-    .song img, .ranking-item img {
+    .song img {
       height: 60px;
       width: 60px;
       margin-right: 15px;
       border-radius: 6px;
-    }
-    .ranking-item img {
-      height: 40px;
-      width: 40px;
     }
     .song-details {
       display: flex;
@@ -62,6 +56,15 @@
       margin-left: 10px;
       padding: 5px 10px;
       cursor: pointer;
+    }
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
     }
     .ranking-item span {
       margin-right: 10px;
@@ -136,22 +139,22 @@
     }
 
     function initializePlayer() {
-      if (!window.Spotify) return;
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        player = new Spotify.Player({
+          name: 'FIFA Ranker Player',
+          getOAuthToken: cb => cb(accessToken),
+          volume: 0.8
+        });
 
-      player = new Spotify.Player({
-        name: 'FIFA Ranker Player',
-        getOAuthToken: cb => cb(accessToken),
-        volume: 0.8
-      });
+        player.addListener('ready', ({ device_id }) => {
+          deviceId = device_id;
+          playerReady = true;
+          console.log('Player ready with Device ID', deviceId);
+          transferPlaybackHere(deviceId);
+        });
 
-      player.addListener('ready', ({ device_id }) => {
-        deviceId = device_id;
-        playerReady = true;
-        console.log('Player ready with Device ID', deviceId);
-        transferPlaybackHere(device_id);
-      });
-
-      player.connect();
+        player.connect();
+      };
     }
 
     function transferPlaybackHere(device_id) {
@@ -194,7 +197,7 @@
 
         div.innerHTML = `
           <div style="display:flex;align-items:center;">
-            <img src="${song.img || ''}" alt="Cover" />
+            <img src="${song.img}" alt="Cover" />
             <div class="song-details">
               <a href="${song.url}" target="_blank">${song.name}</a>
               <span>${song.artist}</span>
@@ -232,13 +235,16 @@
         item.innerHTML = `
           <span>#${idx + 1}</span>
           <div style="display:flex;align-items:center;">
-            <img src="${song.img || ''}" alt="Cover" />
+            <img src="${song.img}" alt="Cover" style="height:40px;width:40px;margin-right:10px;" />
             <div>
               <div><strong>${song.name}</strong></div>
               <div style="font-size:smaller;">${song.artist}</div>
             </div>
           </div>
-          <button onclick="removeFromRanking('${song.uri}')">❌</button>
+          <div>
+            <button onclick="playFullSong('${song.uri}')">▶</button>
+            <button onclick="removeFromRanking('${song.uri}')">❌</button>
+          </div>
         `;
         board.appendChild(item);
       });
@@ -290,8 +296,7 @@
           uri: item.track.uri
         }));
 
-        const newSongs = songs.filter(song => !ranking.some(r => r.uri === song.uri));
-        renderSongs(newSongs);
+        renderSongs(songs);
       } catch (err) {
         console.error(err);
         alert('Failed to load playlist.');
@@ -300,18 +305,6 @@
 
     checkAuthCode();
   </script>
-
-  <script>
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      initializePlayer();
-    };
-  </script>
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-  <script>
-    new Sortable(document.getElementById('rankingBoard'), {
-      animation: 150
-    });
-  </script>
 </body>
 </html>
